@@ -5,7 +5,9 @@
 
 This repository hosts the source code for [https://webvm.io](https://webvm.io), a Linux virtual machine that runs in your browser.
 
-<img src="assets/welcome_to_WebVM_slim.png" width="95%">
+Try out the new Alpine / Xorg / i3 graphical environment: [https://webvm.io/alpine.html](https://webvm.io/alpine.html)
+
+<img src="/assets/welcome_to_WebVM_alpine_2024.png" width="90%">
 
 WebVM is a server-less virtual environment running fully client-side in HTML5/WebAssembly. It's designed to be Linux ABI-compatible. It runs an unmodified Debian distribution including many native development toolchains.
 
@@ -13,8 +15,12 @@ WebVM is powered by the CheerpX virtualization engine, and enables safe, sandbox
 
 # Enable networking
 
-- Click "Connect via Tailscale" in the page header.
-- Log in to Tailscale (create an account if you don't have one).
+Modern browsers do not provide APIs to directly use TCP or UDP. WebVM provides networking support by integrating with Tailscale, a VPN network that supports WebSockets as a transport layer.
+
+- Open the "Networking" panel from the side-bar
+- Click "Connect to Tailscale" from the panel
+- Log in to Tailscale (create an account if you don't have one)
+- Click "Connect" when prompted by Tailscale
 - If you are unfamiliar with Tailscale or would like additional information see [WebVM and Tailscale](/docs/Tailscale.md).
 
 # Fork, deploy, customize
@@ -37,21 +43,88 @@ WebVM is powered by the CheerpX virtualization engine, and enables safe, sandbox
 
 <img src="/assets/result.png" width="70%" >
 
-You can now customize `dockerfiles/debian_mini` to suits your needs, or make a new Dockerfile from scratch. Use the `Path to Dockerfile` workflow parameter to select it.
+You can now customize `dockerfiles/debian_mini` to suit your needs, or make a new Dockerfile from scratch. Use the `Path to Dockerfile` workflow parameter to select it.
 
-# Local deployment
+# Run WebVM locally with a custom Debian mini disk image
 
-From a local `git clone`
+1. Clone the WebVM Repository
 
-- Download the `debian_mini` Ext2 image from [https://github.com/leaningtech/webvm/releases/](https://github.com/leaningtech/webvm/releases/).
-	- You can also build your own by selecting the "Upload GitHub release" workflow option.
-	- Place the image in the repository root folder.
-- Edit `index.html`.
-	- Uncomment the default values for `CMD`, `ARGS`, `ENV` and `CWD`.
-	- Replace `DEVICE_TYPE` with `"bytes"`.
-	- Replace `IMAGE_URL` with the name of the Ext2 image. For example `"debian_mini_20230519_5022088024.ext2"`.
-- Start a local HTTP server.
-- Enjoy your local WebVM.
+```sh
+git clone https://github.com/leaningtech/webvm.git
+cd webvm
+```
+
+2. Download the Debian mini Ext2 image
+
+	Run the following command to download the Debian mini Ext2 image:
+
+	```sh
+	wget "https://github.com/leaningtech/webvm/releases/download/ext2_image/debian_mini_20230519_5022088024.ext2"
+	```
+
+	(*You can also build your own disk image by selecting the **"Upload GitHub release"** workflow option*)
+
+3. Update the configuration file
+
+	Edit `config_public_terminal.js` to reference your local disk image:
+
+- Replace: 
+	
+	`"wss://disks.webvm.io/debian_large_20230522_5044875331.ext2"`
+	
+	With:
+	
+	`"/disk-images/debian_mini_20230519_5022088024.ext2"`
+
+	(*Use an absolute or relative URL pointing to the disk image location.*)
+
+
+- Replace `"cloud"` with the correct disk image type: `"bytes"`
+	
+4. Build WebVM
+
+	Run the following commands to install dependencies and build WebVM:
+
+	```sh
+	npm install
+	npm run build
+	```
+
+	The output will be placed in the `build` directory.
+
+5. Configure Nginx
+
+- Create a directory for the disk image:
+
+	```sh
+	mkdir disk-images
+	mv debian_mini_20230519_5022088024.ext2 disk-images/
+	```
+
+- Modify your `nginx.conf` file to serve the disk image. Add the following location block:
+
+	```nginx
+	location /disk-images/ {
+        root .;
+        autoindex on;
+	}
+	```
+
+6. Start Nginx
+
+	Run the following command to start Nginx:
+
+	```sh
+	nginx -p . -c nginx.conf
+	```
+
+	*Nginx will automatically serve the build directory.*
+
+7. Access WebVM
+
+	Open a browser and visit: `http://127.0.0.1:8081`.
+
+	Enjoy your local WebVM!
 
 # Example customization: Python3 REPL
 
@@ -70,6 +143,37 @@ index 2878332..1f3103a 100644
 +CMD [ "/usr/bin/python3" ]
 ```
 
+# How to use Claude AI
+
+To access Claude AI, you need an API key. Follow these steps to get started:
+
+1. Create an account
+- Visit [Anthropic Console](https://console.anthropic.com/login) and sign up with your e-mail. You'll receive a sign in link to the Anthropic Console. 
+
+<img src="/assets/anthropic_signup.png" width="90%">
+
+2. Get your API key
+- Once logged in, navigate to **Get API keys**.
+- Purchase the amount of credits you need. After completing the purchase, you'll be able to generate the key through the API console.
+
+<img src="/assets/anthropic_api_payment.png" width="90%">
+
+3. Log in with your API key
+- Navigate to your WebVM and hover over the robot icon. This will show the Claude AI Integration tab. For added convenience, you can click the pin button in the top right corner to keep the tab in place.
+- You'll see a prompt where you can insert your Claude API key.
+- Insert your key and press enter.
+
+<img src="/assets/insert_key.png" width="90%">
+
+4. Start using Claude AI
+- Once your API key is entered, you can begin interacting with Claude AI by asking questions such as:
+
+ __"Solve the CTF challenge at `/home/user/chall1.bin.` Note that the binary reads from stdin."__
+
+<img src="/assets/webvm_claude_ctf.gif" alt="deploy_instructions_gif" width="90%">
+
+**Important:** Your API key is private and should never be shared. We do not have access to your key, which is not only stored locally in your browser.
+
 # Bugs and Issues
 
 Please use [Issues](https://github.com/leaningtech/webvm/issues) to report any bug.
@@ -85,18 +189,18 @@ Or come to say hello / share your feedback on [Discord](https://discord.gg/yTNZg
 
 # Thanks to... 
 This project depends on:
-- [CheerpX](https://labs.leaningtech.com/cheerpx), made by [Leaning Technologies](https://leaningtech.com) for x86 virtualization and Linux emulation
+- [CheerpX](https://cheerpx.io/), made by [Leaning Technologies](https://leaningtech.com/) for x86 virtualization and Linux emulation
 - xterm.js, [https://xtermjs.org/](https://xtermjs.org/), for providing the Web-based terminal emulator
 - [Tailscale](https://tailscale.com/), for the networking component
-- [lwIP](https://savannah.nongnu.org/projects/lwip/), for the TCP/IP stack, compiled for the Web via [Cheerp](https://github.com/leaningtech/cheerp-meta)
+- [lwIP](https://savannah.nongnu.org/projects/lwip/), for the TCP/IP stack, compiled for the Web via [Cheerp](https://github.com/leaningtech/cheerp-meta/)
 
 # Versioning
 
-WebVM depends on the CheerpX x86-to-WebAssembly virtualization technology. A link to the current latest build is always available at [https://cheerpxdemos.leaningtech.com/publicdeploy/LATEST.txt](https://cheerpxdemos.leaningtech.com/publicdeploy/LATEST.txt). Builds of CheerpX are immutable and uniquely versioned. An example link would be:
+WebVM depends on the CheerpX x86-to-WebAssembly virtualization technology, which is included in the project via [NPM](https://www.npmjs.com/package/@leaningtech/cheerpx).
 
-`https://cheerpxdemos.leaningtech.com/publicdeploy/20230517_94/cx.js`
+The NPM package is updated on every release.
 
-We strongly encourage users _not_ to use the latest build. Please directly use a specific build to avoid unexpected regressions. Since builds are immutable, if they work for you now they will keep working forever.
+Every build is immutable, if a specific version works well for you today, it will keep working forever.
 
 # License
 
@@ -104,6 +208,8 @@ WebVM is released under the Apache License, Version 2.0.
 
 You are welcome to use, modify, and redistribute the contents of this repository.
 
-The public CheerpX deployment is provided **as-is** and is **free to use** for technological exploration, testing and non-commercial uses. Downloading a CheerpX build for the purpose of hosting it elsewhere is not permitted.
+The public CheerpX deployment is provided **as-is** and is **free to use** for technological exploration, testing and use by individuals. Any other use by organizations, including non-profit, academia and the public sector, requires a license. Downloading a CheerpX build for the purpose of hosting it elsewhere is not permitted without a commercial license.
+
+Read more about [CheerpX licensing](https://cheerpx.io/docs/licensing)
 
 If you want to build a product on top of CheerpX/WebVM, please get in touch: sales@leaningtech.com
